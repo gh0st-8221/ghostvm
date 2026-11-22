@@ -1,0 +1,10 @@
+.build/
+work/
+dist/
+.gradle/
+local.properties
+*.apk
+*.aab
+*.so
+*.o
+*.a

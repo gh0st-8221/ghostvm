@@ -24,7 +24,7 @@ fetch https://download.qemu.org/qemu-11.1.3.tar.xz qemu-11.1.3.tar.xz
 patch -d qemu -p1 --forward < patches/qemu-11.1.3.patch || true
 
 # GLib 2.90.1
-fetch https://download.gnome.org/sources/glib/2.88/glib-2.90.1.tar.xz glib-2.90.1.tar.xz
+fetch https://download.gnome.org/sources/glib/2.90/glib-2.90.1.tar.xz glib-2.90.1.tar.xz
 [[ -d glib ]] || { tar -xJf glib-2.90.1.tar.xz; mv glib-2.90.1 glib; }
 patch -d glib -p1 --forward < patches/glib-2.90.1.patch || true
 

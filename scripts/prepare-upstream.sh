@@ -54,3 +54,6 @@ if [[ ! -d virglrenderer/.git ]]; then
   git clone --depth 1 https://gitlab.freedesktop.org/virgl/virglrenderer.git virglrenderer
 fi
 patch -d virglrenderer -p1 --forward < patches/virglrenderer-1.3.0-android-egl.patch || true
+# Android uses the platform EGL/GLES stack, not host libdrm. This include is
+# unused by the EGL backend and is not available in the Android NDK sysroot.
+sed -i '/^#include <xf86drm.h>$/d' virglrenderer/src/vrend/vrend_winsys_egl.c

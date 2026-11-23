@@ -28,7 +28,28 @@ if obsolete in s:
     p.write_text(s.replace(obsolete, "", 1))
 elif "render-server-mode" in s:
     raise SystemExit("Unexpected render-server-mode syntax in Makefile; refusing an unsafe edit")
+# The upstream install target uses rsync only to copy built shared
+# libraries into jniLibs. Avoid an extra host dependency: preserve the
+# original exclusion of libqemu-system-* with a portable shell loop.
+import re
+rsync_pattern = re.compile(
+    r"(?m)^(?P<indent>[ \\t]*)rsync -av --exclude libqemu-system-\\* \.\\./libs/\\* \.\\./jniLibs/\\s*$"
+)
+matches = list(rsync_pattern.finditer(s))
+replacement = (
+    r'\\g<indent>for item in ../libs/*; do '
+    r'case "$item" in ../libs/libqemu-system-*) continue;; esac; '
+    r'cp -a "$item" ../jniLibs/; done'
+)
+if matches:
+    if len(matches) != 1:
+        raise SystemExit(f"Expected one rsync install command, found {len(matches)}")
+    s = rsync_pattern.sub(replacement, s, count=1)
+elif "for item in ../libs/*; do case \"$item\" in ../libs/libqemu-system-*)" not in s:
+    raise SystemExit("Expected upstream rsync install command was not found")
+p.write_text(s)
 print("Removed obsolete virglrenderer 1.3.0 Meson option from upstream Makefile.")
+print("Replaced rsync in upstream install target with cp; rsync is no longer required.")
 PY
 
 fetch() {

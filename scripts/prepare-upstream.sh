@@ -77,7 +77,7 @@ for root in (Path("virglrenderer/src"), Path("virglrenderer/vtest")):
 p = Path("virglrenderer/meson.build")
 if p.exists():
     s = p.read_text()
-    s = "\\n".join(line for line in s.split("\\n") if "subdir('vtest')" not in line)
+    s = "".join(line for line in s.splitlines(keepends=True) if "subdir('vtest')" not in line)
     p.write_text(s)
 PY
 # Drop stale Meson targets so the changed source graph is regenerated.

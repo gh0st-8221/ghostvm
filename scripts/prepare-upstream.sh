@@ -34,7 +34,7 @@ fetch https://github.com/libffi/libffi/releases/download/v3.8.0/libffi-3.8.0.tar
 
 # pixman 0.46.4
 fetch https://gitlab.freedesktop.org/pixman/pixman/-/archive/pixman-0.46.4/pixman-pixman-0.46.4.tar.gz pixman-0.46.4.tar.gz
-[[ -d pixman ]] || { tar -xzf pixman-0.46.4.tar.gz; mv pixman-pixman-0.46.4 pixman; (cd pixman && bash autogen.sh); }
+[[ -d pixman ]] || { tar -xzf pixman-0.46.4.tar.gz; mv pixman-pixman-0.46.4 pixman; }
 
 # libslirp 4.9.5 (QEMU subproject)
 fetch https://gitlab.freedesktop.org/slirp/libslirp/-/archive/v4.9.5/libslirp-v4.9.5.zip libslirp-v4.9.5.zip

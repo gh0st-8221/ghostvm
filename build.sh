@@ -15,7 +15,9 @@ export NDK_ENV="linux-x86_64"
 export BUILD_THREADS="${BUILD_THREADS:-$(nproc)}"
 
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
-for cmd in git make python3 java curl tar patch unzip; do command -v "$cmd" >/dev/null 2>&1 || fail "Missing command: $cmd"; done
+for cmd in git make python3 java curl tar patch unzip rsync; do
+  command -v "$cmd" >/dev/null 2>&1 || fail "Missing command: $cmd. On Arch Linux install it with: sudo pacman -S rsync (on Ubuntu: sudo apt-get install rsync)."
+done
 
 # virglrenderer generates Gallium sources with Python PyYAML.
 if ! python3 -c "import yaml" >/dev/null 2>&1; then

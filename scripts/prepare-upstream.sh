@@ -57,7 +57,7 @@ patch -d virglrenderer -p1 --forward < patches/virglrenderer-1.3.0-android-egl.p
 # Android uses platform EGL/GLES, not host libdrm. Remove DRM-only includes
 # from optional backends as the NDK does not ship xf86drm.h.
 find virglrenderer/src virglrenderer/vtest -type f \\( -name '*.c' -o -name '*.h' \\) -print0 2>/dev/null |
-  xargs -0 -r sed -i '/^[[:space:]]*#include[[:space:]]*<xf86drm\\.h>[[:space:]]*$/d'
+  xargs -0 -r sed -i '/^[[:space:]]*#include[[:space:]]*<xf86drm\.h>[[:space:]]*$/d'
 
 # vtest is a host-side test server and is not used by QEMU on Android.
 # Upstream's Android patch may not match a newer virglrenderer checkout,
@@ -68,6 +68,6 @@ p = Path("virglrenderer/meson.build")
 s = p.read_text()
 needle = "subdir('vtest')"
 if needle in s and "host_machine.system() != 'android'" not in s:
-    s = s.replace(needle, "if host_machine.system() != 'android'\\n   subdir('vtest')\\nendif", 1)
+    s = s.replace(needle, "if host_machine.system() != 'android'\n   subdir('vtest')\nendif", 1)
     p.write_text(s)
 PY

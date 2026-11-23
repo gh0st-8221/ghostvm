@@ -59,7 +59,6 @@ patch -d virglrenderer -p1 --forward < patches/virglrenderer-1.3.0-android-egl.p
 # vtest is a host-only test server and must not enter the Android build graph.
 python3 - <<'PY'
 from pathlib import Path
-import re
 
 base = Path("virglrenderer")
 for root in (base / "src", base / "vtest"):
@@ -68,22 +67,20 @@ for root in (base / "src", base / "vtest"):
             if p.suffix not in {".c", ".h"}:
                 continue
             try:
-                original = p.read_text()
+                lines = p.read_text().splitlines(keepends=True)
             except (UnicodeDecodeError, OSError):
                 continue
-            cleaned = re.sub(r"^\\s*#\\s*include\\s*[<\\\"]xf86drm\\.h[>\\\"]\\s*\\n?", "", original, flags=re.M)
-            if cleaned != original:
-                p.write_text(cleaned)
+            cleaned = [line for line in lines if not ("#include" in line and "xf86drm.h" in line)]
+            if cleaned != lines:
+                p.write_text("".join(cleaned))
 
-# Remove any root-level Meson inclusion of vtest, allowing either quote style.
 meson = base / "meson.build"
 if meson.exists():
-    original = meson.read_text()
-    cleaned = re.sub(r"^\\s*subdir\\(\\s*['\\\"]vtest['\\\"]\\s*\\)\\s*\\n?", "", original, flags=re.M)
-    if cleaned != original:
-        meson.write_text(cleaned)
+    lines = meson.read_text().splitlines(keepends=True)
+    cleaned = [line for line in lines if not ("subdir" in line and "vtest" in line)]
+    if cleaned != lines:
+        meson.write_text("".join(cleaned))
 
-# Fail early rather than allowing a stale/unsupported DRM source into Ninja.
 remaining = []
 for root in (base / "src", base / "vtest"):
     if root.exists():
@@ -95,9 +92,9 @@ for root in (base / "src", base / "vtest"):
                 except (UnicodeDecodeError, OSError):
                     pass
 if remaining:
-    raise SystemExit("Android virglrenderer cleanup failed; xf86drm.h remains in: " + ", ".join(remaining))
-if meson.exists() and re.search(r"subdir\\(\\s*['\\\"]vtest['\\\"]\\s*\\)", meson.read_text()):
-    raise SystemExit("Android virglrenderer cleanup failed; vtest is still enabled in meson.build")
+    raise SystemExit("Android cleanup failed; xf86drm.h remains: " + ", ".join(remaining))
+if meson.exists() and any("subdir" in line and "vtest" in line for line in meson.read_text().splitlines()):
+    raise SystemExit("Android cleanup failed; vtest is still enabled in meson.build")
 print("Android virglrenderer cleanup: DRM headers removed; vtest disabled.")
 PY
 # Force Meson to regenerate targets from the cleaned Android source tree.

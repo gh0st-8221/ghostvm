@@ -44,11 +44,11 @@ loop_indices = [
 if len(indices) == 1:
     i = indices[0]
     indent = lines[i][:len(lines[i]) - len(lines[i].lstrip())]
-    lines[i] = indent + "cp -f ../libs/*.so ../jniLibs/\\n"
+    lines[i] = indent + "cp -f ../libs/*.so ../jniLibs/\n"
 elif len(indices) == 0 and len(loop_indices) == 1:
     i = loop_indices[0]
     indent = lines[i][:len(lines[i]) - len(lines[i].lstrip())]
-    lines[i] = indent + "cp -f ../libs/*.so ../jniLibs/\\n"
+    lines[i] = indent + "cp -f ../libs/*.so ../jniLibs/\n"
 elif len(indices) == 0 and len(loop_indices) == 0:
     if not any(line.strip() == "cp -f ../libs/*.so ../jniLibs/" for line in lines):
         raise SystemExit("Expected upstream rsync install command was not found")

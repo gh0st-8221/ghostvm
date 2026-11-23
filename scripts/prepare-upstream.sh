@@ -125,15 +125,28 @@ replace_once(
     "with_host_darwin = host_machine.system() == 'darwin'\n"
     "with_host_android = host_machine.system() == 'android'\n",
 )
-replace_once(
-    "libdrm_dep = dependency('libdrm', version : '>=2.4.50')\n",
-    "if with_host_android\n"
-    "  # Android uses platform EGL/GLES and has no host libdrm dependency.\n"
-    "  libdrm_dep = declare_dependency()\n"
-    "else\n"
-    "  libdrm_dep = dependency('libdrm', version : '>=2.4.50')\n"
-    "endif\n",
-)
+# Match the pinned release's libdrm dependency regardless of Meson
+# keyword spacing/version formatting; keep the original dependency on hosts.
+import re
+if "with_host_android" not in s:
+    raise SystemExit("Android host detection was not inserted")
+if "libdrm_dep = declare_dependency()" not in s:
+    pattern = re.compile(r"(?m)^(?P<indent>[ \\t]*)libdrm_dep\\s*=\\s*dependency\\(\\s*['\"]libdrm['\"].*\\)\\s*$")
+    matches = list(pattern.finditer(s))
+    if len(matches) != 1:
+        raise SystemExit(f"Expected exactly one libdrm dependency assignment, found {len(matches)}")
+    m = matches[0]
+    indent = m.group("indent")
+    original = m.group(0).strip()
+    guarded = (
+        f"{indent}if with_host_android\\n"
+        f"{indent}  # Android uses platform EGL/GLES and has no host libdrm dependency.\\n"
+        f"{indent}  libdrm_dep = declare_dependency()\\n"
+        f"{indent}else\\n"
+        f"{indent}  {original}\\n"
+        f"{indent}endif"
+    )
+    s = s[:m.start()] + guarded + s[m.end():]
 replace_once(
     "epoxy_dep = dependency('epoxy', version: '>= 1.5.4')\n",
     "if with_host_android\n"

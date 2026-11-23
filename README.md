@@ -20,7 +20,7 @@ Install Android SDK command-line tools and accept licenses. Set:
 
 ```bash
 export ANDROID_SDK_ROOT="$HOME/Android/Sdk"
-export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/30.0.14992026"
+export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/30.0.16248370"
 ```
 
 Then:
@@ -29,7 +29,7 @@ Then:
 ./build.sh
 ```
 
-The script checks for SDK/NDK, fetches the pinned upstream source, builds QEMU for ARM64 host + x86_64 guest, and assembles the APK. Output is placed in `dist/`.
+The script checks for SDK/NDK and host tools, fetches the pinned upstream source and QEMU dependencies automatically, builds QEMU for ARM64 host + x86_64 guest, and assembles the APK. Use `bash build.sh` if the executable bit is not set. Output is placed in `dist/`.
 
 ## VM expectations
 

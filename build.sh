@@ -56,6 +56,17 @@ make -C "$JNI" qube
 printf '\n== Building release APK ==\n'
 cd "$SRC"
 chmod +x gradlew
+
+# Ensure Android raw resources exist before AGP generates the library R class.
+# The upstream syncQemuValues task may not run early enough with newer AGP.
+VALUES_DIR="$SRC/qube-android-lib/qemu-values/$USE_QEMU_VERSION"
+RAW_DIR="$SRC/qube-android-lib/src/main/res/raw"
+[[ -d "$VALUES_DIR" ]] || fail "QEMU values directory not found: $VALUES_DIR"
+mkdir -p "$RAW_DIR"
+cp -f "$VALUES_DIR"/*.txt "$RAW_DIR"/
+[[ -n "$(find "$RAW_DIR" -maxdepth 1 -type f -name '*.txt' -print -quit)" ]] || fail "No QEMU raw resource files were copied."
+printf 'Installed QEMU Android resources from %s\n' "$VALUES_DIR"
+
 ./gradlew --no-daemon -PqemuVersion="$USE_QEMU_VERSION" :qube-android-x86:assembleRelease
 
 APK="$(find "$SRC/qube-android-x86/build/outputs/apk/release" -maxdepth 1 -type f -name '*.apk' -print -quit)"

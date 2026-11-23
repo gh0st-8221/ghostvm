@@ -34,7 +34,7 @@ jobs:
           sdkmanager --install "platforms;android-37" "build-tools;37.0.0" "ndk;30.0.16248370"
           echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/30.0.16248370" >> "$GITHUB_ENV"
       - name: Fetch and patch QEMU dependencies
-        run: bash scripts/prepare-upstream.sh work/QubeVM/qube-android-lib/src/main/jni
+        run: bash scripts/prepare-upstream.sh work/QubeVM
       - name: Build native QEMU and Android APK
         run: bash build.sh
       - name: Package APK

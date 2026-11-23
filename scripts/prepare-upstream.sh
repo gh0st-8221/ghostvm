@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-JNI="$1"
-if [[ ! -d "$JNI/.git" ]]; then
-  mkdir -p "$(dirname "$JNI")"
-  git clone https://github.com/rhn-1k/QubeVM.git "$(dirname "$JNI")/../.." 2>/dev/null || true
+SRC="$1"
+UPSTREAM_COMMIT="979d638e5d57ed0c01c4781957ddac5e9697e970"
+if [[ ! -d "$SRC/.git" ]]; then
+  mkdir -p "$(dirname "$SRC")"
+  git clone https://github.com/rhn-1k/QubeVM.git "$SRC"
 fi
+git -C "$SRC" fetch --depth 1 origin "$UPSTREAM_COMMIT"
+git -C "$SRC" checkout --detach "$UPSTREAM_COMMIT"
+JNI="$SRC/qube-android-lib/src/main/jni"
 [[ -d "$JNI" ]] || { echo "JNI source directory not found: $JNI" >&2; exit 1; }
 cd "$JNI"
 

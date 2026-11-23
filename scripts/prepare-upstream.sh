@@ -74,7 +74,67 @@ else
   git -C virglrenderer fetch --depth 1 origin refs/tags/1.3.0:refs/tags/1.3.0
   git -C virglrenderer checkout --force --detach 1.3.0
 fi
-apply_patch virglrenderer patches/virglrenderer-1.3.0-android-egl.patch
+# The bundled patch's meson.build context drifted from the 1.3.0 release
+# tarball. Apply its C-source changes separately, then make the Meson changes
+# with exact, checked transformations below.
+tmp_patch="$(mktemp)"
+sed -n '/^--- pristine\/src\//,$p' patches/virglrenderer-1.3.0-android-egl.patch > "$tmp_patch"
+apply_patch virglrenderer "$tmp_patch"
+rm -f "$tmp_patch"
+
+python3 - <<'PY'
+from pathlib import Path
+
+p = Path("virglrenderer/meson.build")
+s = p.read_text()
+
+def replace_once(old: str, new: str) -> None:
+    global s
+    count = s.count(old)
+    if count == 0:
+        # Accept an already-patched file on a rerun.
+        if new in s:
+            return
+        raise SystemExit("Expected Meson context not found: " + old.splitlines()[0])
+    if count != 1:
+        raise SystemExit("Meson context is ambiguous: " + old.splitlines()[0])
+    s = s.replace(old, new, 1)
+
+replace_once(
+    "with_host_windows = host_machine.system() == 'windows'\n"
+    "with_host_darwin = host_machine.system() == 'darwin'\n",
+    "with_host_windows = host_machine.system() == 'windows'\n"
+    "with_host_darwin = host_machine.system() == 'darwin'\n"
+    "with_host_android = host_machine.system() == 'android'\n",
+)
+replace_once(
+    "epoxy_dep = dependency('epoxy', version: '>= 1.5.4')\n",
+    "if with_host_android\n"
+    "  # Android builds epoxy directly with the NDK; pkg-config is unavailable.\n"
+    "  epoxy_dep = declare_dependency(compile_args: [], link_args: ['-lepoxy'], version: '1.5.10')\n"
+    "else\n"
+    "  epoxy_dep = dependency('epoxy', version: '>= 1.5.4')\n"
+    "endif\n",
+)
+replace_once(
+    "if cc.has_header('epoxy/egl.h', dependencies: epoxy_dep) and epoxy_dep.get_variable(pkgconfig: 'epoxy_has_egl') == '1'\n"
+    "      if with_host_windows or with_host_darwin\n",
+    "if cc.has_header('epoxy/egl.h', dependencies: epoxy_dep) and (with_host_android or epoxy_dep.get_variable(pkgconfig: 'epoxy_has_egl') == '1')\n"
+    "      if with_host_windows or with_host_darwin or with_host_android\n",
+)
+replace_once(
+    "if cc.has_header('epoxy/glx.h', dependencies: epoxy_dep) and epoxy_dep.get_variable(pkgconfig: 'epoxy_has_glx') == '1'\n",
+    "if not with_host_android and cc.has_header('epoxy/glx.h', dependencies: epoxy_dep) and epoxy_dep.get_variable(pkgconfig: 'epoxy_has_glx') == '1'\n",
+)
+replace_once(
+    "if not with_host_windows\n   subdir('vtest')\nendif\n",
+    "if not with_host_windows and not with_host_android\n   subdir('vtest')\nendif\n",
+)
+
+p.write_text(s)
+print("Android virglrenderer Meson configuration applied.")
+PY
+
 # Android uses platform EGL/GLES, not host libdrm. The NDK does not ship
 # xf86drm.h; strip DRM-only includes from every virglrenderer C/header source.
 # vtest is a host-only test server and must not enter the Android build graph.

@@ -55,30 +55,50 @@ if [[ ! -d virglrenderer/.git ]]; then
 fi
 patch -d virglrenderer -p1 --forward < patches/virglrenderer-1.3.0-android-egl.patch || true
 # Android uses platform EGL/GLES, not host libdrm. The NDK does not ship
-# xf86drm.h, and these DRM-only includes are not used by the EGL path.
+# xf86drm.h; strip DRM-only includes from every virglrenderer C/header source.
+# vtest is a host-only test server and must not enter the Android build graph.
 python3 - <<'PY'
 from pathlib import Path
-for root in (Path("virglrenderer/src"), Path("virglrenderer/vtest")):
-    if not root.exists():
-        continue
-    for p in root.rglob("*"):
-        if p.suffix not in {".c", ".h"}:
-            continue
-        try:
-            s = p.read_text()
-        except UnicodeDecodeError:
-            continue
-        lines = s.splitlines(keepends=True)
-        filtered = [line for line in lines if "#include <xf86drm.h>" not in line]
-        if filtered != lines:
-            p.write_text("".join(filtered))
+import re
 
-# vtest is a host-only test server; do not add it to Android's Meson graph.
-p = Path("virglrenderer/meson.build")
-if p.exists():
-    s = p.read_text()
-    s = "".join(line for line in s.splitlines(keepends=True) if "subdir('vtest')" not in line)
-    p.write_text(s)
+base = Path("virglrenderer")
+for root in (base / "src", base / "vtest"):
+    if root.exists():
+        for p in root.rglob("*"):
+            if p.suffix not in {".c", ".h"}:
+                continue
+            try:
+                original = p.read_text()
+            except (UnicodeDecodeError, OSError):
+                continue
+            cleaned = re.sub(r"^\\s*#\\s*include\\s*[<\\\"]xf86drm\\.h[>\\\"]\\s*\\n?", "", original, flags=re.M)
+            if cleaned != original:
+                p.write_text(cleaned)
+
+# Remove any root-level Meson inclusion of vtest, allowing either quote style.
+meson = base / "meson.build"
+if meson.exists():
+    original = meson.read_text()
+    cleaned = re.sub(r"^\\s*subdir\\(\\s*['\\\"]vtest['\\\"]\\s*\\)\\s*\\n?", "", original, flags=re.M)
+    if cleaned != original:
+        meson.write_text(cleaned)
+
+# Fail early rather than allowing a stale/unsupported DRM source into Ninja.
+remaining = []
+for root in (base / "src", base / "vtest"):
+    if root.exists():
+        for p in root.rglob("*"):
+            if p.suffix in {".c", ".h"}:
+                try:
+                    if "xf86drm.h" in p.read_text():
+                        remaining.append(str(p))
+                except (UnicodeDecodeError, OSError):
+                    pass
+if remaining:
+    raise SystemExit("Android virglrenderer cleanup failed; xf86drm.h remains in: " + ", ".join(remaining))
+if meson.exists() and re.search(r"subdir\\(\\s*['\\\"]vtest['\\\"]\\s*\\)", meson.read_text()):
+    raise SystemExit("Android virglrenderer cleanup failed; vtest is still enabled in meson.build")
+print("Android virglrenderer cleanup: DRM headers removed; vtest disabled.")
 PY
-# Drop stale Meson targets so the changed source graph is regenerated.
+# Force Meson to regenerate targets from the cleaned Android source tree.
 rm -rf virglrenderer/build-android

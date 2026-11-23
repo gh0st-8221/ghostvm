@@ -2,6 +2,11 @@
 set -Eeuo pipefail
 
 JNI="$1"
+if [[ ! -d "$JNI/.git" ]]; then
+  mkdir -p "$(dirname "$JNI")"
+  git clone https://github.com/rhn-1k/QubeVM.git "$(dirname "$JNI")/../.." 2>/dev/null || true
+fi
+[[ -d "$JNI" ]] || { echo "JNI source directory not found: $JNI" >&2; exit 1; }
 cd "$JNI"
 
 fetch() {

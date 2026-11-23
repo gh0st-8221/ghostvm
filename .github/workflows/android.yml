@@ -1,0 +1,63 @@
+name: Build GhostVM Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-arm64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout GhostVM
+        uses: actions/checkout@v4
+      - name: Install host build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y make autoconf automake git python3 python3-pip binutils \
+            libtool flex bison gettext texinfo rsync gtk-doc-tools ninja-build unzip \
+            curl wget pkg-config build-essential patch
+          python3 -m pip install --break-system-packages --upgrade meson mako
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install Android platform and NDK
+        run: |
+          sdkmanager --install "platforms;android-37" "build-tools;37.0.0" "ndk;30.0.16248370"
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/30.0.16248370" >> "$GITHUB_ENV"
+      - name: Fetch and patch QEMU dependencies
+        run: bash scripts/prepare-upstream.sh work/QubeVM/qube-android-lib/src/main/jni
+      - name: Build native QEMU and Android APK
+        run: bash build.sh
+      - name: Package APK
+        run: |
+          mkdir -p package
+          cp dist/GhostVM-android-arm64.apk package/
+          cat > package/INSTALL.txt <<'EOF'
+          GhostVM Android ARM64 build
+          
+          Install GhostVM-android-arm64.apk on an ARM64 Android device (Android 11+).
+          Open GhostVM, create a VM, select a bootable x86_64 ISO as the CD-ROM,
+          configure RAM/CPU, and start the VM. x86_64 execution uses software
+          emulation (TCG), so performance depends heavily on the phone.
+          
+          This is the upstream QubeVM frontend packaged by GhostVM's build.
+          EOF
+          cd package && zip -9 ../dist/GhostVM-Android-APK.zip GhostVM-android-arm64.apk INSTALL.txt
+      - name: Upload APK and install archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: GhostVM-Android-ARM64
+          path: |
+            dist/GhostVM-android-arm64.apk
+            dist/GhostVM-Android-APK.zip
+          if-no-files-found: error
+          retention-days: 30

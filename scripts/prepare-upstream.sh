@@ -18,15 +18,29 @@ fetch() {
   [[ -s "$file" ]] || curl -fL --retry 3 "$url" -o "$file"
 }
 
+# Apply patches safely on reruns: skip only when the reverse patch proves
+# that the complete patch is already present. Fail on genuine mismatches.
+apply_patch() {
+  local target="$1" patch_file="$2"
+  if patch --dry-run --silent -d "$target" -p1 --forward < "$patch_file"; then
+    patch -d "$target" -p1 --forward < "$patch_file"
+  elif patch --dry-run --silent -d "$target" -p1 -R < "$patch_file"; then
+    echo "Patch already applied: $patch_file"
+  else
+    echo "Patch does not apply cleanly (and is not already applied): $patch_file" >&2
+    return 1
+  fi
+}
+
 # QEMU 11.1.3
 fetch https://download.qemu.org/qemu-11.1.3.tar.xz qemu-11.1.3.tar.xz
 [[ -d qemu ]] || { tar -xJf qemu-11.1.3.tar.xz; mv qemu-11.1.3 qemu; }
-patch -d qemu -p1 --forward < patches/qemu-11.1.3.patch || true
+apply_patch qemu patches/qemu-11.1.3.patch
 
 # GLib 2.90.1
 fetch https://download.gnome.org/sources/glib/2.90/glib-2.90.1.tar.xz glib-2.90.1.tar.xz
 [[ -d glib ]] || { tar -xJf glib-2.90.1.tar.xz; mv glib-2.90.1 glib; }
-patch -d glib -p1 --forward < patches/glib-2.90.1.patch || true
+apply_patch glib patches/glib-2.90.1.patch
 
 # libffi 3.8.0
 fetch https://github.com/libffi/libffi/releases/download/v3.8.0/libffi-3.8.0.tar.gz libffi-3.8.0.tar.gz
@@ -43,17 +57,24 @@ if [[ ! -d qemu/subprojects/libslirp ]]; then
   unzip -q libslirp-v4.9.5.zip -d qemu/subprojects/
   mv qemu/subprojects/libslirp-v4.9.5 qemu/subprojects/libslirp
 fi
-patch -d qemu/subprojects/libslirp -p1 --forward < patches/libslirp-4.9.5.patch || true
+apply_patch qemu/subprojects/libslirp patches/libslirp-4.9.5.patch
 
 # libepoxy 1.5.10
 fetch https://github.com/anholt/libepoxy/archive/refs/tags/1.5.10.zip libepoxy-1.5.10.zip
 [[ -d libepoxy ]] || { unzip -q libepoxy-1.5.10.zip; mv libepoxy-1.5.10 libepoxy; }
 
 # virglrenderer, as required by the upstream Android build
+# The Android patch is written specifically for upstream virglrenderer 1.3.0.
+# Do not build against an unpinned moving branch.
 if [[ ! -d virglrenderer/.git ]]; then
-  git clone --depth 1 https://gitlab.freedesktop.org/virgl/virglrenderer.git virglrenderer
+  git clone --depth 1 --branch 1.3.0 https://gitlab.freedesktop.org/virgl/virglrenderer.git virglrenderer
+else
+  git -C virglrenderer reset --hard
+  git -C virglrenderer clean -fd
+  git -C virglrenderer fetch --depth 1 origin refs/tags/1.3.0:refs/tags/1.3.0
+  git -C virglrenderer checkout --force --detach 1.3.0
 fi
-patch -d virglrenderer -p1 --forward < patches/virglrenderer-1.3.0-android-egl.patch || true
+apply_patch virglrenderer patches/virglrenderer-1.3.0-android-egl.patch
 # Android uses platform EGL/GLES, not host libdrm. The NDK does not ship
 # xf86drm.h; strip DRM-only includes from every virglrenderer C/header source.
 # vtest is a host-only test server and must not enter the Android build graph.
@@ -87,7 +108,10 @@ for root in (base / "src", base / "vtest"):
         for p in root.rglob("*"):
             if p.suffix in {".c", ".h"}:
                 try:
-                    if "xf86drm.h" in p.read_text():
+                    if any(
+                        line.lstrip().startswith("#include") and "xf86drm.h" in line
+                        for line in p.read_text().splitlines()
+                    ):
                         remaining.append(str(p))
                 except (UnicodeDecodeError, OSError):
                     pass

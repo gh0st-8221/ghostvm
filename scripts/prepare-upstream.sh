@@ -21,7 +21,7 @@ from pathlib import Path
 
 p = Path("Makefile")
 s = p.read_text()
-obsolete = "\t\t-Drender-server-mode=thread \\\n"
+obsolete = "\t\t-Drender-server-mode=thread \\n"
 if obsolete in s:
     if s.count(obsolete) != 1:
         raise SystemExit("Expected exactly one obsolete virglrenderer Meson option")
@@ -131,7 +131,7 @@ import re
 if "with_host_android" not in s:
     raise SystemExit("Android host detection was not inserted")
 if "libdrm_dep = declare_dependency()" not in s:
-    pattern = re.compile(r"(?m)^(?P<indent>[ \\t]*)libdrm_dep\\s*=\\s*dependency\\(\\s*['\"]libdrm['\"].*\\)\\s*$")
+    pattern = re.compile(r"(?m)^(?P<indent>[ \t]*)libdrm_dep\s*=\s*dependency\(\s*['\"]libdrm['\"].*\)\s*$")
     matches = list(pattern.finditer(s))
     if len(matches) != 1:
         raise SystemExit(f"Expected exactly one libdrm dependency assignment, found {len(matches)}")
@@ -139,11 +139,11 @@ if "libdrm_dep = declare_dependency()" not in s:
     indent = m.group("indent")
     original = m.group(0).strip()
     guarded = (
-        f"{indent}if with_host_android\\n"
-        f"{indent}  # Android uses platform EGL/GLES and has no host libdrm dependency.\\n"
-        f"{indent}  libdrm_dep = declare_dependency()\\n"
-        f"{indent}else\\n"
-        f"{indent}  {original}\\n"
+        f"{indent}if with_host_android\n"
+        f"{indent}  # Android uses platform EGL/GLES and has no host libdrm dependency.\n"
+        f"{indent}  libdrm_dep = declare_dependency()\n"
+        f"{indent}else\n"
+        f"{indent}  {original}\n"
         f"{indent}endif"
     )
     s = s[:m.start()] + guarded + s[m.end():]

@@ -47,7 +47,7 @@ if len(indices) == 1:
     lines[i] = (
         indent + 'for item in ../libs/*; do '
         'case "$item" in ../libs/libqemu-system-*) continue;; esac; '
-        'cp -a "$item" ../jniLibs/; done\\n'
+        'cp -a "$item" ../jniLibs/; done\n'
     )
     s = "".join(lines)
 elif len(indices) == 0 and not already:

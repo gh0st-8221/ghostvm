@@ -17,6 +17,11 @@ export BUILD_THREADS="${BUILD_THREADS:-$(nproc)}"
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 for cmd in git make python3 java curl tar patch unzip; do command -v "$cmd" >/dev/null 2>&1 || fail "Missing command: $cmd"; done
 
+# virglrenderer generates Gallium sources with Python PyYAML.
+if ! python3 -c "import yaml" >/dev/null 2>&1; then
+  fail "Python module PyYAML is missing. On Arch Linux install it with: sudo pacman -S python-yaml (on Ubuntu: sudo apt-get install python3-yaml)."
+fi
+
 SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/Android/Sdk}}"
 NDK="${ANDROID_NDK_HOME:-$SDK/ndk/30.0.16248370}"
 [[ -d "$SDK" ]] || fail "Android SDK not found. Set ANDROID_SDK_ROOT."

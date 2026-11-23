@@ -9,6 +9,7 @@ if [[ ! -d "$SRC/.git" ]]; then
 fi
 git -C "$SRC" fetch --depth 1 origin "$UPSTREAM_COMMIT"
 git -C "$SRC" checkout --detach "$UPSTREAM_COMMIT"
+git -C "$SRC" reset --hard "$UPSTREAM_COMMIT"
 JNI="$SRC/qube-android-lib/src/main/jni"
 [[ -d "$JNI" ]] || { echo "JNI source directory not found: $JNI" >&2; exit 1; }
 cd "$JNI"
@@ -28,35 +29,35 @@ if obsolete in s:
     p.write_text(s.replace(obsolete, "", 1))
 elif "render-server-mode" in s:
     raise SystemExit("Unexpected render-server-mode syntax in Makefile; refusing an unsafe edit")
-# The upstream install target uses rsync only to copy built shared
-# libraries into jniLibs. Avoid an extra host dependency: preserve the
-# original exclusion of libqemu-system-* with a shell loop.
+# The upstream install target only needs shared libraries in jniLibs.
+# Copy those directly; the excluded libqemu-system-* entries are executables.
 lines = s.splitlines(keepends=True)
 indices = [
     i for i, line in enumerate(lines)
     if "rsync -av --exclude libqemu-system-*" in line
     and "../libs/*" in line and "../jniLibs/" in line
 ]
-already = any(
-    'for item in ../libs/*; do case "$item" in ../libs/libqemu-system-*)' in line
-    for line in lines
-)
+loop_indices = [
+    i for i, line in enumerate(lines)
+    if "for item in ../libs/*;" in line and "../jniLibs/" in line
+]
 if len(indices) == 1:
     i = indices[0]
     indent = lines[i][:len(lines[i]) - len(lines[i].lstrip())]
-    lines[i] = (
-        indent + 'for item in ../libs/*; do '
-        'case "$item" in ../libs/libqemu-system-*) continue;; esac; '
-        'cp -a "$item" ../jniLibs/; done\n'
-    )
-    s = "".join(lines)
-elif len(indices) == 0 and not already:
-    raise SystemExit("Expected upstream rsync install command was not found")
-elif len(indices) > 1:
-    raise SystemExit(f"Expected one rsync install command, found {len(indices)}")
+    lines[i] = indent + "cp -f ../libs/*.so ../jniLibs/\\n"
+elif len(indices) == 0 and len(loop_indices) == 1:
+    i = loop_indices[0]
+    indent = lines[i][:len(lines[i]) - len(lines[i].lstrip())]
+    lines[i] = indent + "cp -f ../libs/*.so ../jniLibs/\\n"
+elif len(indices) == 0 and len(loop_indices) == 0:
+    if not any(line.strip() == "cp -f ../libs/*.so ../jniLibs/" for line in lines):
+        raise SystemExit("Expected upstream rsync install command was not found")
+elif len(indices) > 1 or len(loop_indices) > 1:
+    raise SystemExit("Ambiguous upstream library install command")
+s = "".join(lines)
 p.write_text(s)
 print("Removed obsolete virglrenderer 1.3.0 Meson option from upstream Makefile.")
-print("Replaced rsync in upstream install target with cp; rsync is no longer required.")
+print("Replaced rsync with a simple shared-library copy; rsync is not required.")
 PY
 
 fetch() {

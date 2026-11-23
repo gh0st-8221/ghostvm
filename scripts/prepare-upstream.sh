@@ -126,6 +126,15 @@ replace_once(
     "with_host_android = host_machine.system() == 'android'\n",
 )
 replace_once(
+    "libdrm_dep = dependency('libdrm', version : '>=2.4.50')\n",
+    "if with_host_android\n"
+    "  # Android uses platform EGL/GLES and has no host libdrm dependency.\n"
+    "  libdrm_dep = declare_dependency()\n"
+    "else\n"
+    "  libdrm_dep = dependency('libdrm', version : '>=2.4.50')\n"
+    "endif\n",
+)
+replace_once(
     "epoxy_dep = dependency('epoxy', version: '>= 1.5.4')\n",
     "if with_host_android\n"
     "  # Android builds epoxy directly with the NDK; pkg-config is unavailable.\n"

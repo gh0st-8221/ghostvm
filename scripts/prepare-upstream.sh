@@ -13,6 +13,24 @@ JNI="$SRC/qube-android-lib/src/main/jni"
 [[ -d "$JNI" ]] || { echo "JNI source directory not found: $JNI" >&2; exit 1; }
 cd "$JNI"
 
+# QubeVM's pinned Makefile targets an older virglrenderer Meson interface.
+# virglrenderer 1.3.0 removed render-server-mode; the worker setting is
+# irrelevant for this Android build (Venus/render server are disabled).
+python3 - <<'PY'
+from pathlib import Path
+
+p = Path("Makefile")
+s = p.read_text()
+obsolete = "\t\t-Drender-server-mode=thread \\\n"
+if obsolete in s:
+    if s.count(obsolete) != 1:
+        raise SystemExit("Expected exactly one obsolete virglrenderer Meson option")
+    p.write_text(s.replace(obsolete, "", 1))
+elif "render-server-mode" in s:
+    raise SystemExit("Unexpected render-server-mode syntax in Makefile; refusing an unsafe edit")
+print("Removed obsolete virglrenderer 1.3.0 Meson option from upstream Makefile.")
+PY
+
 fetch() {
   local url="$1" file="$2"
   [[ -s "$file" ]] || curl -fL --retry 3 "$url" -o "$file"

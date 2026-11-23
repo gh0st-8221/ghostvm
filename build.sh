@@ -15,7 +15,7 @@ export NDK_ENV="linux-x86_64"
 export BUILD_THREADS="${BUILD_THREADS:-$(nproc)}"
 
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
-for cmd in git make python3 java; do command -v "$cmd" >/dev/null 2>&1 || fail "Missing command: $cmd"; done
+for cmd in git make python3 java curl tar patch unzip; do command -v "$cmd" >/dev/null 2>&1 || fail "Missing command: $cmd"; done
 
 SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/Android/Sdk}}"
 NDK="${ANDROID_NDK_HOME:-$SDK/ndk/30.0.16248370}"
@@ -34,9 +34,13 @@ JNI="$SRC/qube-android-lib/src/main/jni"
 [[ -f "$JNI/Makefile" ]] || fail "Upstream JNI Makefile missing."
 [[ -f "$SRC/gradlew" ]] || fail "Gradle wrapper missing."
 
-# Dependency sources and patches are prepared by scripts/prepare-upstream.sh.
+# Prepare all upstream sources automatically. Safe to re-run: downloaded archives
+# and extracted source trees are kept under work/QubeVM.
+printf '\\n== Preparing pinned QEMU sources and dependencies ==\\n'
+bash "$ROOT/scripts/prepare-upstream.sh" "$SRC"
+
 for dep in qemu glib libffi pixman libepoxy virglrenderer; do
-  [[ -d "$JNI/$dep" ]] || fail "Missing $dep source. Run scripts/prepare-upstream.sh first."
+  [[ -d "$JNI/$dep" ]] || fail "Dependency preparation did not produce $dep."
 done
 
 printf '\n== Building QEMU 11.1.3 for ARM64 Android (x86_64 guest, TCG) ==\n'

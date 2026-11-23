@@ -56,7 +56,7 @@ make -C "$JNI" qube
 printf '\n== Building release APK ==\n'
 cd "$SRC"
 chmod +x gradlew
-./gradlew --no-daemon :qube-android-x86:assembleRelease
+./gradlew --no-daemon -PqemuVersion="$USE_QEMU_VERSION" :qube-android-x86:assembleRelease
 
 APK="$(find "$SRC/qube-android-x86/build/outputs/apk/release" -maxdepth 1 -type f -name '*.apk' -print -quit)"
 [[ -n "$APK" && -f "$APK" ]] || fail "APK not found after Gradle build."
